@@ -7,6 +7,7 @@ import { CreateTodoDto } from './dto/create-todo.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TodoEntity, TodoStatus } from './entities/todo.entity';
+import { UserEntity } from 'src/auth/entities/user.entity';
 
 @Injectable()
 export class TodoService {
@@ -14,7 +15,10 @@ export class TodoService {
     @InjectRepository(TodoEntity) private repo: Repository<TodoEntity>,
   ) {}
 
-  public async addTask(createTodoDto: CreateTodoDto): Promise<TodoEntity> {
+  public async addTask(
+    createTodoDto: CreateTodoDto,
+    user: UserEntity,
+  ): Promise<TodoEntity> {
     try {
       const data = new TodoEntity();
       const { title, description } = createTodoDto;
@@ -22,7 +26,8 @@ export class TodoService {
       (data.title = title),
         (data.description = description),
         (data.status = TodoStatus.OPEN),
-        (data.createdDate = createTodoDto.createdDate);
+        (data.createdDate = createTodoDto.createdDate),
+        (data.userId = user.id);
       this.repo.create(data);
       return await this.repo.save(data);
     } catch (error) {
@@ -30,9 +35,11 @@ export class TodoService {
     }
   }
 
-  public async getTasks(): Promise<TodoEntity[]> {
+  public async getTasks(user: UserEntity): Promise<TodoEntity[]> {
+    const query = this.repo.createQueryBuilder('todos');
+    query.where(`todos.userId = :userId`, { userId: user.id });
     try {
-      return await this.repo.find();
+      return await query.getMany();
     } catch (error) {
       throw new BadRequestException({ message: error.message });
     }
@@ -42,29 +49,34 @@ export class TodoService {
     const task = await this.repo.findOne({ where: { id } });
     if (!task) {
       throw new NotFoundException({
-        message: `Invalid ID: Task with ID ${id} not found`,
+        message: `Task with ID: ${id}, not found.`,
       });
     }
     return task;
   }
 
-  public async updateTask(id: string, status: TodoStatus): Promise<TodoEntity> {
-    await this.repo.update({ id }, { status });
+  public async updateTask(
+    id: string,
+    status: TodoStatus,
+    user: UserEntity,
+  ): Promise<TodoEntity> {
+    await this.repo.update({ id, userId: user.id }, { status });
+
     const updatedTask = await this.repo.findOne({ where: { id } });
     if (!updatedTask) {
       throw new NotFoundException({
-        message: `Invalid ID: Task with ID ${id} not found`,
+        message: `Task with ID: ${id}, not found.`,
       });
     }
     return updatedTask;
   }
 
-  public async removeTask(id: string): Promise<TodoEntity> {
-    await this.repo.delete({ id });
+  public async removeTask(id: string, user: UserEntity): Promise<TodoEntity> {
+    await this.repo.delete({ id, userId: user.id });
     const deletedTask = await this.repo.findOne({ where: { id } });
     if (!deletedTask) {
       throw new NotFoundException({
-        message: `Invalid ID: Task with ID ${id} not found`,
+        message: `Sorry, the content you seek with Task ID: ${id}, was not found and may be have been deleted.`,
       });
     }
     return deletedTask;

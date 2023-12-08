@@ -6,7 +6,7 @@ import { UserEntity } from './entities/user.entity';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
-
+import { JwtStrategy } from './jwt.strategy';
 import { Algorithm } from 'jsonwebtoken';
 
 @Module({
@@ -31,7 +31,7 @@ import { Algorithm } from 'jsonwebtoken';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService],
-  exports: [PassportModule],
+  providers: [AuthService, JwtStrategy],
+  exports: [JwtStrategy, PassportModule],
 })
 export class AuthModule {}
