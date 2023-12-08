@@ -4,18 +4,8 @@ import { AppService } from './app.service';
 import { TodoModule } from './todo/todo.module';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
-import { ConfigModule } from '@nestjs/config';
-
-const ormOptions: TypeOrmModuleOptions = {
-  type: 'mysql',
-  host: 'localhost',
-  port: 3306,
-  username: 'root',
-  password: 'honeylite',
-  database: 'todo',
-  autoLoadEntities: true,
-  synchronize: true,
-};
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { join } from 'path';
 
 @Module({
   imports: [
@@ -23,7 +13,21 @@ const ormOptions: TypeOrmModuleOptions = {
       envFilePath: '.env',
       isGlobal: true,
     }),
-    TypeOrmModule.forRoot(ormOptions),
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: async (config: ConfigService) => ({
+        type: config.get<string>('DB_TYPE') as 'mysql',
+        host: config.get<string>('DB_HOST'),
+        port: config.get<number>('DB_PORT'),
+        username: config.get<string>('DB_USERNAME'),
+        password: config.get<string>('DB_PASSWORD'),
+        database: config.get<string>('DB_NAME'),
+        autoLoadEntities: true,
+        synchronize: true,
+        entities: [join(__dirname, '**', '*.entity{.ts,.js}')],
+      }),
+    }),
     TodoModule,
     AuthModule,
   ],
